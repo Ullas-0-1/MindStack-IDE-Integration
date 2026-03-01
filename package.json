@@ -1,0 +1,76 @@
+{
+    "name": "mindstack",
+    "displayName": "MindStack Code Observer",
+    "description": "MindStack Code Observer IDE Extension",
+    "version": "0.0.1",
+    "publisher": "mindstack",
+    "enabledApiProposals": [
+        "terminalDataWriteEvent"
+    ],
+    "engines": {
+        "vscode": "^1.80.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [],
+    "main": "./dist/extension.js",
+    "contributes": {
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "mindstack-sidebar-view",
+                    "title": "MindStack",
+                    "icon": "media/icon.svg"
+                }
+            ]
+        },
+        "views": {
+            "mindstack-sidebar-view": [
+                {
+                    "type": "webview",
+                    "id": "mindstack.sidebar",
+                    "name": "MindStack",
+                    "icon": "media/icon.svg",
+                    "contextualTitle": "MindStack Observer"
+                }
+            ]
+        },
+        "commands": [
+            {
+                "command": "mindstack.sendHighlight",
+                "title": "Send to MindStack"
+            }
+        ],
+        "menus": {
+            "editor/context": [
+                {
+                    "when": "editorHasSelection",
+                    "command": "mindstack.sendHighlight",
+                    "group": "1_modification"
+                }
+            ]
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run package",
+        "compile": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node",
+        "watch": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --watch",
+        "package": "npm run build:webview && esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify",
+        "build:webview": "cd webview-ui && npm run build",
+        "dev:webview": "cd webview-ui && npm run dev",
+        "install:all": "npm install && cd webview-ui && npm install"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "@types/vscode": "^1.80.0",
+        "esbuild": "^0.20.0",
+        "typescript": "^5.0.0"
+    },
+    "dependencies": {
+        "@types/node-fetch": "^2.6.13",
+        "@types/uuid": "^10.0.0",
+        "node-fetch": "^3.3.2",
+        "uuid": "^13.0.0"
+    }
+}
