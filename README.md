@@ -1,8 +1,8 @@
-# MindStack Code Observer 🚀
+# MindStack Code Observer 
 
 MindStack is an intelligent, automated coding context engine that lives securely inside your VS Code Editor. It silently observes your active workspace, captures terminal errors, monitors project structure changes, and builds a powerful context bridge to the MindStack web dashboard.
 
-## 🌟 Key Features & Workflows
+##  Key Features & Workflows
 
 ### 1. Automated Bug Fix Tracking (`IDE_TERMINAL_ERROR`)
 * **How it works:** MindStack silently listens to the integrated VS Code terminal for command failures (e.g., `npm ERR!`, `fatal:`, `Exception`). 
@@ -25,7 +25,7 @@ MindStack is an intelligent, automated coding context engine that lives securely
 
 ---
 
-## 📂 Project Structure
+##  Project Structure
 
 The extension is built using a modern architecture separating the **Extension Host** (Node.js/TypeScript) from the **Sidebar Webview** (React/Vite).
 
@@ -62,7 +62,7 @@ MindStack_IDE_Extension/
 
 ---
 
-## 📥 Installation
+## Installation
 
 Because MindStack utilizes advanced, proposed VS Code APIs to securely read your terminal output, it cannot be installed directly from the public marketplace yet. You must install it manually using the provided `.vsix` file.
 
@@ -78,7 +78,7 @@ Because MindStack utilizes advanced, proposed VS Code APIs to securely read your
 7. Select your `mindstack-0.0.1.vsix` file. 
 8. The MindStack logo will appear in your left Activity Bar!
 
-## 🗑️ Uninstallation
+## Uninstallation
 
 1. Open VS Code.
 2. Click the **Extensions** icon in the left Activity Bar.
@@ -89,7 +89,7 @@ Because MindStack utilizes advanced, proposed VS Code APIs to securely read your
 
 ---
 
-## 🔒 Security & Privacy
+##  Security & Privacy
 
 * **Local First:** All repository scraping (`git diff`, `find .`) happens completely locally. 
 * **Proxy Architecture:** The frontend webview generates no direct outbound network requests. All API and Database calls are securely proxied through the Node.js Extension Host to prevent cross-site scripting vulnerabilities.
