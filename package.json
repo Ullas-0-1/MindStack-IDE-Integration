@@ -1,8 +1,8 @@
 {
     "name": "mindstack",
     "displayName": "MindStack Code Observer",
-    "description": "MindStack Code Observer IDE Extension",
-    "version": "0.0.1",
+    "description": "Securely stream your VS Code workspace context to your MindStack dashboard",
+    "version": "0.0.2",
     "publisher": "mindstack",
     "enabledApiProposals": [
         "terminalDataWriteEvent"

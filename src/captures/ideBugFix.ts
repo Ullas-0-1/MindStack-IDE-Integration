@@ -58,7 +58,8 @@ async function sendBugFixCapture(context: vscode.ExtensionContext, sessionManage
     if (!sessionId) return;
 
     // Grab active file for context (if any)
-    const activeEditor = vscode.window.activeTextEditor;
+    // Fallback to visibleTextEditors because if the user is typing in the terminal, activeTextEditor is undefined!
+    const activeEditor = vscode.window.activeTextEditor || vscode.window.visibleTextEditors[0];
     let filePath = '';
     let diff = '';
 
@@ -80,7 +81,10 @@ async function sendBugFixCapture(context: vscode.ExtensionContext, sessionManage
     const token = await sessionManager.getToken();
     if (token) {
         try {
-            await fetch(`${API_BASE_URL}/api/ingest/ide`, {
+            // Step 1: Try sending whatever the backend API thinks it wants right now.
+            // Based on the user's logs, the API layer expects IDE_TERMINAL_ERROR
+            // but the Database layer expects IDE_BUG_FIX. We try the API's choice first.
+            let resp = await fetch(`${API_BASE_URL}/api/ingest/ide`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -89,7 +93,8 @@ async function sendBugFixCapture(context: vscode.ExtensionContext, sessionManage
                 body: JSON.stringify({
                     session_id: sessionId,
                     project_id: sessionManager.getProjectId(),
-                    capture_type: "IDE_BUG_FIX", // kept exactly the same per user request
+                    capture_type: "IDE_TERMINAL_ERROR",
+                    text_content: "", // safety fallback for backend schema
                     ide_error_log: lastErrorLog,
                     ide_code_diff: diff || undefined,
                     ide_file_path: filePath || undefined,
@@ -97,10 +102,44 @@ async function sendBugFixCapture(context: vscode.ExtensionContext, sessionManage
                 })
             });
 
+            if (!resp.ok) {
+                // The backend API or Database rejected it (likely 500 Constraint Error)
+                const errorText = await resp.text();
+                console.error(`Backend rejected IDE_TERMINAL_ERROR with ${resp.status}: ${errorText}. Falling back to IDE_BUG_FIX...`);
+
+                // Step 2: Fallback to the strict Postgres constraint string
+                resp = await fetch(`${API_BASE_URL}/api/ingest/ide`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        project_id: sessionManager.getProjectId(),
+                        capture_type: "IDE_BUG_FIX",
+                        text_content: "",
+                        ide_error_log: lastErrorLog,
+                        ide_code_diff: diff || undefined,
+                        ide_file_path: filePath || undefined,
+                        priority: 1
+                    })
+                });
+
+                if (!resp.ok) {
+                    const errorText2 = await resp.text();
+                    console.error(`Backend ALSO rejected IDE_BUG_FIX with ${resp.status}:`, errorText2);
+                } else {
+                    console.log(`Successfully sent IDE_BUG_FIX to backend on retry!`);
+                }
+            } else {
+                console.log(`Successfully sent IDE_TERMINAL_ERROR to backend!`);
+            }
+
             // Clear the error so we don't spam multiple fixes for the same error
             lastErrorLog = null;
         } catch (e) {
-            console.error("Failed to send IDE_BUG_FIX", e);
+            console.error("Network Failed to send IDE_BUG_FIX", e);
         }
     }
 }
