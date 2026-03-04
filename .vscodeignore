@@ -10,3 +10,4 @@ tsconfig.json
 src/**
 webview-ui/**
 !webview-ui/dist/**
+INSTRUCTIONS_FOR_FRIENDS.md

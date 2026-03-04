@@ -20,6 +20,12 @@ export async function proxyFetch(endpoint: string, options: any = {}): Promise<a
             const message = event.data;
             if (message.command === 'apiProxyResponse' && message.reqId === reqId) {
                 window.removeEventListener('message', listener);
+
+                // GLOBAL LOGOUT TRIGGER
+                if (message.status === 401 || (message.error && message.error.toLowerCase().includes('jwt expired'))) {
+                    vscode.postMessage({ command: 'logout' });
+                }
+
                 if (message.error) {
                     reject(new Error(message.error));
                 } else if (message.status >= 400) {

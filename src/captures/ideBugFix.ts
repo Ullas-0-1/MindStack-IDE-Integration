@@ -92,7 +92,7 @@ async function sendBugFixCapture(context: vscode.ExtensionContext, sessionManage
                 },
                 body: JSON.stringify({
                     session_id: sessionId,
-                    project_id: sessionManager.getProjectId(),
+                    [sessionManager.getTargetType() === 'workspace' ? 'workspace_id' : 'project_id']: sessionManager.getTargetId(),
                     capture_type: "IDE_TERMINAL_ERROR",
                     text_content: "", // safety fallback for backend schema
                     ide_error_log: lastErrorLog,
@@ -116,7 +116,7 @@ async function sendBugFixCapture(context: vscode.ExtensionContext, sessionManage
                     },
                     body: JSON.stringify({
                         session_id: sessionId,
-                        project_id: sessionManager.getProjectId(),
+                        [sessionManager.getTargetType() === 'workspace' ? 'workspace_id' : 'project_id']: sessionManager.getTargetId(),
                         capture_type: "IDE_BUG_FIX",
                         text_content: "",
                         ide_error_log: lastErrorLog,

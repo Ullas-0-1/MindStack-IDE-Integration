@@ -3,12 +3,13 @@ import { API_BASE_URL } from './extension';
 
 export class SessionManager {
     private sessionId: string | null = null;
-    private projectId: string | null = null;
+    private targetId: string | null = null;
+    private targetType: 'project' | 'workspace' | null = null;
     private heartbeatInterval: NodeJS.Timeout | null = null;
 
     constructor(private context: vscode.ExtensionContext) { }
 
-    public async startSession(projectId: string): Promise<boolean> {
+    public async startSession(targetId: string, targetType: 'project' | 'workspace'): Promise<boolean> {
         const token = await this.context.secrets.get('mindstack_jwt');
         if (!token) {
             vscode.window.showErrorMessage('Not authenticated. Please log in.');
@@ -22,16 +23,18 @@ export class SessionManager {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ project_id: projectId })
+                body: JSON.stringify(targetType === 'workspace' ? { workspace_id: targetId } : { project_id: targetId })
             });
 
             if (!resp.ok) {
-                throw new Error('Failed to start session');
+                const errorText = await resp.text();
+                throw new Error(`Backend Error ${resp.status}: ${errorText}`);
             }
 
             const data: any = await resp.json();
             this.sessionId = data.session_id;
-            this.projectId = projectId;
+            this.targetId = targetId;
+            this.targetType = targetType;
 
             this.startHeartbeat();
             return true;
@@ -61,7 +64,8 @@ export class SessionManager {
         }
 
         this.sessionId = null;
-        this.projectId = null;
+        this.targetId = null;
+        this.targetType = null;
         if (this.heartbeatInterval) {
             clearInterval(this.heartbeatInterval);
             this.heartbeatInterval = null;
@@ -108,8 +112,12 @@ export class SessionManager {
         return this.sessionId;
     }
 
-    public getProjectId(): string | null {
-        return this.projectId;
+    public getTargetId(): string | null {
+        return this.targetId;
+    }
+
+    public getTargetType(): 'project' | 'workspace' | null {
+        return this.targetType;
     }
 
     public async getToken(): Promise<string | undefined> {

@@ -49,7 +49,7 @@ async function captureSnapshot(sessionManager: SessionManager, context: vscode.E
                 },
                 body: JSON.stringify({
                     session_id: sessionManager.getSessionId(),
-                    project_id: sessionManager.getProjectId(),
+                    [sessionManager.getTargetType() === 'workspace' ? 'workspace_id' : 'project_id']: sessionManager.getTargetId(),
                     capture_type: "IDE_PROGRESS_SNAPSHOT",
                     ide_code_diff: diff || undefined,
                     repo_tree: repoTree || undefined,

@@ -2,7 +2,7 @@ import React, { useCallback, useState, useRef } from 'react';
 import { vscode, proxyFetch } from '../utils/vscode';
 import { UploadCloud, File as FileIcon } from 'lucide-react';
 
-export function Dropzone({ sessionId, projectId, disabled }: { sessionId: string | null, projectId: string | null, disabled: boolean }) {
+export function Dropzone({ sessionId, targetId, targetType, disabled }: { sessionId: string | null, targetId: string | null, targetType: 'project' | 'workspace' | null, disabled: boolean }) {
     const [isDragActive, setIsDragActive] = useState(false);
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -11,17 +11,17 @@ export function Dropzone({ sessionId, projectId, disabled }: { sessionId: string
         e.preventDefault();
         setIsDragActive(false);
 
-        if (disabled || !sessionId || !projectId) return;
+        if (disabled || !sessionId || !targetId || !targetType) return;
 
         const files = Array.from(e.dataTransfer.files);
         if (files.length === 0) return;
 
         const file = files[0]; // just handle 1 for now
         await handleUpload(file);
-    }, [sessionId, projectId, disabled]);
+    }, [sessionId, targetId, targetType, disabled]);
 
     const onFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (disabled || !sessionId || !projectId) return;
+        if (disabled || !sessionId || !targetId || !targetType) return;
         if (e.target.files && e.target.files.length > 0) {
             await handleUpload(e.target.files[0]);
         }
@@ -73,7 +73,7 @@ export function Dropzone({ sessionId, projectId, disabled }: { sessionId: string
                 method: 'POST',
                 body: JSON.stringify({
                     session_id: sessionId,
-                    project_id: projectId,
+                    [targetType === 'workspace' ? 'workspace_id' : 'project_id']: targetId,
                     capture_type: 'RESOURCE_UPLOAD',
                     text_content: "",
                     priority: 5,
@@ -91,7 +91,7 @@ export function Dropzone({ sessionId, projectId, disabled }: { sessionId: string
                     method: 'POST',
                     body: JSON.stringify({
                         capture_id,
-                        project_id: projectId,
+                        [targetType === 'workspace' ? 'workspace_id' : 'project_id']: targetId,
                         s3_url
                     })
                 });

@@ -24,9 +24,10 @@ export function registerManualHighlight(context: vscode.ExtensionContext, sessio
         });
 
         const sessionId = sessionManager.getSessionId();
-        const projectId = sessionManager.getProjectId();
+        const targetId = sessionManager.getTargetId();
+        const targetType = sessionManager.getTargetType();
 
-        if (!sessionId || !projectId) {
+        if (!sessionId || !targetId) {
             vscode.window.showErrorMessage('MindStack: Start a Session first to capture highlights.');
             return;
         }
@@ -50,7 +51,7 @@ export function registerManualHighlight(context: vscode.ExtensionContext, sessio
                     },
                     body: JSON.stringify({
                         session_id: sessionId,
-                        project_id: projectId,
+                        [targetType === 'workspace' ? 'workspace_id' : 'project_id']: targetId,
                         capture_type: 'USER_NOTE',
                         text_content: content,
                         priority: 5

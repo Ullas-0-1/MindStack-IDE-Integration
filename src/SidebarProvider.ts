@@ -96,9 +96,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     break;
                 }
                 case 'startSession': {
-                    const { projectId } = data;
-                    const success = await this._sessionManager.startSession(projectId);
-                    webviewView.webview.postMessage({ command: 'sessionStarted', success, sessionId: this._sessionManager.getSessionId() });
+                    const { targetId, targetType, projectId } = data;
+                    const finalTargetId = targetId || projectId;
+                    const finalTargetType = targetType || 'project';
+                    const success = await this._sessionManager.startSession(finalTargetId, finalTargetType);
+                    webviewView.webview.postMessage({ command: 'sessionStarted', success, sessionId: this._sessionManager.getSessionId(), targetId: finalTargetId, targetType: finalTargetType });
                     break;
                 }
                 case 'stopSession': {

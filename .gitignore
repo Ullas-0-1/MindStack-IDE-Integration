@@ -3,3 +3,4 @@ dist/
 out/
 .env
 .vscode-test/
+INSTRUCTIONS_FOR_FRIENDS.md
