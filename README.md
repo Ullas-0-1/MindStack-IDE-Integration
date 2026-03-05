@@ -70,7 +70,7 @@ MindStack_IDE_Extension/
 
 Because MindStack utilizes advanced, proposed VS Code APIs to securely read your terminal output, it cannot be installed directly from the public marketplace yet. You must install it manually using the provided `.vsix` file.
 
-1. Ensure you have the `mindstack-0.0.3.vsix` file.
+1. Ensure you have the `mindstack-0.0.4.vsix` file.
 2. Open your computer's terminal (iTerm, Mac Terminal, or Windows Command Prompt).
 3. **CRITICAL:** Launch VS Code with the proposed API flag enabled by running:
    ```bash
@@ -79,7 +79,7 @@ Because MindStack utilizes advanced, proposed VS Code APIs to securely read your
 4. Once VS Code opens, click the **Extensions** icon on the left sidebar (or press `Ctrl+Shift+X` / `Cmd+Shift+X`).
 5. Look at the top right of the extensions panel and click the `...` (Views and More Actions) button.
 6. Click **"Install from VSIX..."**
-7. Select your `mindstack-0.0.3.vsix` file. 
+7. Select your `mindstack-0.0.4.vsix` file. 
 8. The MindStack logo will appear in your left Activity Bar!
 
 ## Uninstallation

@@ -17,7 +17,7 @@ export function registerProgressSnapshot(context: vscode.ExtensionContext, sessi
     // For simplicity without external dependencies, we use the 30-min timer as the primary driver per requirements. We can optionally hook into workspace saves.
 }
 
-async function captureSnapshot(sessionManager: SessionManager, context: vscode.ExtensionContext) {
+export async function captureSnapshot(sessionManager: SessionManager, context: vscode.ExtensionContext) {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) return;
 

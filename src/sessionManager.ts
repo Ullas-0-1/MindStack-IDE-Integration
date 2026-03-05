@@ -47,6 +47,14 @@ export class SessionManager {
     public async stopSession() {
         if (!this.sessionId) return;
 
+        // Take a final snapshot before destroying session state
+        try {
+            const { captureSnapshot } = require('./captures/progressSnapshot');
+            await captureSnapshot(this, this.context);
+        } catch (e) {
+            console.error('Failed to take final snapshot: ', e);
+        }
+
         const token = await this.context.secrets.get('mindstack_jwt');
         if (token) {
             try {

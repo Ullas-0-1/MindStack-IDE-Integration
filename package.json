@@ -2,7 +2,7 @@
     "name": "mindstack",
     "displayName": "MindStack Code Observer",
     "description": "Securely stream your VS Code workspace context to your MindStack dashboard",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "publisher": "mindstack",
     "enabledApiProposals": [
         "terminalDataWriteEvent"
