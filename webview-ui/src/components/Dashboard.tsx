@@ -262,6 +262,15 @@ export function Dashboard() {
                     />
                 </div>
             </div>
+
+            <div style={{ marginTop: 'auto', paddingTop: '10px' }}>
+                <button
+                    onClick={() => vscode.postMessage({ command: 'logout' })}
+                    style={{ width: '100%', padding: '6px', backgroundColor: 'transparent', color: 'var(--vscode-testing-iconFailed)', border: '1px solid var(--vscode-testing-iconFailed)' }}
+                >
+                    Log Out
+                </button>
+            </div>
         </div>
     );
 }
