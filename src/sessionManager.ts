@@ -6,8 +6,19 @@ export class SessionManager {
     private targetId: string | null = null;
     private targetType: 'project' | 'workspace' | null = null;
     private heartbeatInterval: NodeJS.Timeout | null = null;
+    private sessionStartTime: number = 0;
+    private debugManager: any = null;
+    private finalSnapshotCallback: any = null;
 
     constructor(private context: vscode.ExtensionContext) { }
+
+    public setDebugManager(mgr: any) {
+        this.debugManager = mgr;
+    }
+
+    public setFinalSnapshotCallback(cb: any) {
+        this.finalSnapshotCallback = cb;
+    }
 
     public async startSession(targetId: string, targetType: 'project' | 'workspace'): Promise<boolean> {
         const token = await this.context.secrets.get('mindstack_jwt');
@@ -35,6 +46,7 @@ export class SessionManager {
             this.sessionId = data.session_id;
             this.targetId = targetId;
             this.targetType = targetType;
+            this.sessionStartTime = Date.now();
 
             this.startHeartbeat();
             return true;
@@ -49,8 +61,10 @@ export class SessionManager {
 
         // Take a final snapshot before destroying session state
         try {
-            const { captureSnapshot } = require('./captures/progressSnapshot');
-            await captureSnapshot(this, this.context);
+            if (this.finalSnapshotCallback) {
+                await this.finalSnapshotCallback(this, this.context, this.debugManager, "IDE_SESSION_FINAL_SNAPSHOT");
+                vscode.window.showInformationMessage("MindStack: Captured Final Session Snapshot!");
+            }
         } catch (e) {
             console.error('Failed to take final snapshot: ', e);
         }
@@ -74,10 +88,24 @@ export class SessionManager {
         this.sessionId = null;
         this.targetId = null;
         this.targetType = null;
+        this.sessionStartTime = 0;
         if (this.heartbeatInterval) {
             clearInterval(this.heartbeatInterval);
             this.heartbeatInterval = null;
         }
+    }
+
+    public getSessionDurationString(): string {
+        if (!this.sessionStartTime) return "0 minutes";
+        const mins = Math.floor((Date.now() - this.sessionStartTime) / 60000);
+        const hours = Math.floor(mins / 60);
+        if (hours > 0) return `${hours} hours, ${mins % 60} minutes`;
+        return `${mins} minutes`;
+    }
+
+    public getSessionDurationSeconds(): number {
+        if (!this.sessionStartTime) return 0;
+        return Math.floor((Date.now() - this.sessionStartTime) / 1000);
     }
 
     private startHeartbeat() {

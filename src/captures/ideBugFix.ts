@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
-import { API_BASE_URL } from '../extension';
 import { SessionManager } from '../sessionManager';
+import { DebugEpisodeManager } from './debugEpisodeManager';
+import { DiffEngine } from './diffEngine';
 
 const ANSI_REGEX = /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
 
@@ -14,146 +15,110 @@ function cleanTerminalString(str: string): string {
         .trim();
 }
 
-// Simple cache for the last error log
 let lastErrorLog: string | null = null;
 let lastErrorTime: number = 0;
 let errorDebounceTimer: NodeJS.Timeout | null = null;
+let terminalBuffer: string = '';
 
-export function registerIdeBugFixCapture(context: vscode.ExtensionContext, sessionManager: SessionManager) {
-    // 1. Listen to Terminal Output
+export function registerIdeBugFixCapture(context: vscode.ExtensionContext, sessionManager: SessionManager, debugManager: DebugEpisodeManager) {
     context.subscriptions.push(
-        vscode.window.onDidWriteTerminalData((e) => {
+        (vscode.window as any).onDidWriteTerminalData((e: any) => {
             const sessionId = sessionManager.getSessionId();
-            if (!sessionId) return; // Only capture if session is active
+            if (!sessionId) return;
 
-            const lowerData = e.data.toLowerCase();
-            if (lowerData.includes('error') || lowerData.includes('failed') || lowerData.includes('command not found') || lowerData.includes('fatal') || lowerData.includes('exception')) {
-                const plainText = cleanTerminalString(e.data);
+            terminalBuffer += e.data;
 
-                // Keep the last 2000 chars roughly or append
-                if (Date.now() - lastErrorTime > 10000) {
-                    lastErrorLog = plainText; // reset if older than 10s
-                } else {
-                    lastErrorLog = (lastErrorLog + '\n' + plainText).slice(-2000);
+            // Loop through all complete lines in the buffer
+            while (true) {
+                const newlineIndex = terminalBuffer.search(/[\r\n]/);
+                if (newlineIndex === -1) break;
+
+                const rawLine = terminalBuffer.substring(0, newlineIndex);
+                terminalBuffer = terminalBuffer.substring(newlineIndex + 1);
+
+                if (!rawLine.trim()) continue;
+
+                const plainText = cleanTerminalString(rawLine);
+                const lowerData = plainText.toLowerCase();
+
+                const isCommandEcho = rawLine.includes('npm') || rawLine.includes('yarn') || rawLine.includes('node ') || rawLine.includes('python ');
+
+                // If an episode is active, monitor for success flags OR command retries
+                if (debugManager.isDebugging()) {
+                    if (lowerData.includes('success') || lowerData.includes('done') || lowerData.includes('compiled') || lowerData.includes('passing')) {
+                        debugManager.resolveEpisode(debugManager.currentEpisode?.initial_command);
+                    } else if (isCommandEcho) {
+                        const runCmd = plainText.substring(0, 100);
+                        debugManager.trackTerminalCommand(runCmd);
+
+                        // We assume the command ran. We wait 3 seconds. 
+                        // If no new 'error' appeared in the buffer since THIS command, we assume it resolved!
+                        const commandTime = Date.now();
+                        setTimeout(() => {
+                            if (debugManager.isDebugging() && lastErrorTime < commandTime) {
+                                debugManager.resolveEpisode(runCmd);
+                            }
+                        }, 3000);
+                    }
                 }
-                lastErrorTime = Date.now();
 
-                // Clear previous debounce and start a new 2-second countdown
-                if (errorDebounceTimer) {
-                    clearTimeout(errorDebounceTimer);
+                if (lowerData.includes('error') || lowerData.includes('failed') || lowerData.includes('command not found') || lowerData.includes('fatal') || lowerData.includes('exception')) {
+                    if (Date.now() - lastErrorTime > 10000) {
+                        lastErrorLog = plainText;
+                        if (!debugManager.isDebugging() && isCommandEcho) {
+                            debugManager.setPendingCommand(plainText.substring(0, 100));
+                        }
+                    } else {
+                        lastErrorLog = (lastErrorLog + '\n' + plainText).slice(-2000);
+                    }
+                    lastErrorTime = Date.now();
+
+                    if (errorDebounceTimer) {
+                        clearTimeout(errorDebounceTimer);
+                    }
+
+                    errorDebounceTimer = setTimeout(async () => {
+                        await triggerEpisodeStart(context, sessionManager, debugManager);
+                    }, 2000);
                 }
-
-                errorDebounceTimer = setTimeout(async () => {
-                    await sendBugFixCapture(context, sessionManager);
-                }, 2000); // Wait 2 seconds of silence
             }
         })
     );
 }
 
-async function sendBugFixCapture(context: vscode.ExtensionContext, sessionManager: SessionManager) {
+async function triggerEpisodeStart(context: vscode.ExtensionContext, sessionManager: SessionManager, debugManager: DebugEpisodeManager) {
     if (!lastErrorLog) return;
-
     const sessionId = sessionManager.getSessionId();
     if (!sessionId) return;
 
-    // Grab active file for context (if any)
-    // Fallback to visibleTextEditors because if the user is typing in the terminal, activeTextEditor is undefined!
     const activeEditor = vscode.window.activeTextEditor || vscode.window.visibleTextEditors[0];
     let filePath = '';
     let diff = '';
+    let repoTree = '';
+    let workspacePath = '';
 
     if (activeEditor) {
         filePath = activeEditor.document.fileName;
         const workspaceFolder = vscode.workspace.getWorkspaceFolder(activeEditor.document.uri);
         if (workspaceFolder) {
+            workspacePath = workspaceFolder.uri.fsPath;
             try {
-                // Get general git diff for the whole workspace, or just the file if preferred.
-                // Reverting to the old file-specific diff as requested:
-                diff = await getGitDiffForFile(workspaceFolder.uri.fsPath, filePath);
-                filePath = vscode.workspace.asRelativePath(activeEditor.document.uri);
-            } catch (e) {
-                console.log("Git diff failed, sending without diff");
-            }
-        }
-    }
+                diff = await DiffEngine.getGitDiff(workspacePath);
 
-    const token = await sessionManager.getToken();
-    if (token) {
-        try {
-            // Step 1: Try sending whatever the backend API thinks it wants right now.
-            // Based on the user's logs, the API layer expects IDE_TERMINAL_ERROR
-            // but the Database layer expects IDE_BUG_FIX. We try the API's choice first.
-            let resp = await fetch(`${API_BASE_URL}/api/ingest/ide`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    session_id: sessionId,
-                    [sessionManager.getTargetType() === 'workspace' ? 'workspace_id' : 'project_id']: sessionManager.getTargetId(),
-                    capture_type: "IDE_TERMINAL_ERROR",
-                    text_content: "", // safety fallback for backend schema
-                    ide_error_log: lastErrorLog,
-                    ide_code_diff: diff || undefined,
-                    ide_file_path: filePath || undefined,
-                    priority: 1
-                })
-            });
-
-            if (!resp.ok) {
-                // The backend API or Database rejected it (likely 500 Constraint Error)
-                const errorText = await resp.text();
-                console.error(`Backend rejected IDE_TERMINAL_ERROR with ${resp.status}: ${errorText}. Falling back to IDE_BUG_FIX...`);
-
-                // Step 2: Fallback to the strict Postgres constraint string
-                resp = await fetch(`${API_BASE_URL}/api/ingest/ide`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        session_id: sessionId,
-                        [sessionManager.getTargetType() === 'workspace' ? 'workspace_id' : 'project_id']: sessionManager.getTargetId(),
-                        capture_type: "IDE_BUG_FIX",
-                        text_content: "",
-                        ide_error_log: lastErrorLog,
-                        ide_code_diff: diff || undefined,
-                        ide_file_path: filePath || undefined,
-                        priority: 1
-                    })
+                const command = `find . -type d \\( -path "./node_modules" -o -path "./.git" -o -path "./dist" -o -path "./build" -o -path "./.next" -o -path "./out" \\) -prune -o -name ".env*" -prune -o -print`;
+                repoTree = await new Promise((res) => {
+                    cp.exec(command, { cwd: workspacePath, maxBuffer: 1024 * 500 }, (error: any, stdout: string) => {
+                        res(stdout ? (stdout.length > 20000 ? stdout.substring(0, 20000) + '\n...[TRUNCATED]' : stdout) : '');
+                    });
                 });
 
-                if (!resp.ok) {
-                    const errorText2 = await resp.text();
-                    console.error(`Backend ALSO rejected IDE_BUG_FIX with ${resp.status}:`, errorText2);
-                } else {
-                    console.log(`Successfully sent IDE_BUG_FIX to backend on retry!`);
-                }
-            } else {
-                console.log(`Successfully sent IDE_TERMINAL_ERROR to backend!`);
+                filePath = vscode.workspace.asRelativePath(activeEditor.document.uri);
+            } catch (e) {
+                console.log("Failed to gather full snapshot context for episode start", e);
             }
-
-            // Clear the error so we don't spam multiple fixes for the same error
-            lastErrorLog = null;
-        } catch (e) {
-            console.error("Network Failed to send IDE_BUG_FIX", e);
         }
     }
-}
 
-function getGitDiffForFile(workspacePath: string, filePath: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-        // Gets unstaged and staged changes for the file
-        cp.exec(`git diff HEAD -- "${filePath}"`, { cwd: workspacePath }, (error, stdout) => {
-            if (error) {
-                // Not a git repo or file not tracked
-                reject(error);
-                return;
-            }
-            resolve(stdout);
-        });
-    });
+    await debugManager.startEpisode(lastErrorLog, filePath, workspacePath, repoTree, diff);
+    lastErrorLog = null;
 }

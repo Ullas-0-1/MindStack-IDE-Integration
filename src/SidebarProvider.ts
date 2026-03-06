@@ -60,8 +60,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 }
                 case 'logout': {
                     console.log('HOST RECEIVED LOGOUT COMMAND. CLEARING TOKENS AND RESETTING VIEW.');
-                    await this._context.secrets.delete('mindstack_jwt');
                     await this._sessionManager.stopSession();
+                    await this._context.secrets.delete('mindstack_jwt');
                     webviewView.webview.postMessage({ command: 'setToken', token: null });
                     break;
                 }

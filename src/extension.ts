@@ -2,8 +2,10 @@ import * as vscode from 'vscode';
 import { SidebarProvider } from './SidebarProvider';
 import { SessionManager } from './sessionManager';
 import { registerIdeBugFixCapture } from './captures/ideBugFix';
-import { registerProgressSnapshot } from './captures/progressSnapshot';
+import { registerProgressSnapshot, captureSnapshot } from './captures/progressSnapshot';
 import { registerManualHighlight } from './captures/manualHighlight';
+
+import { DebugEpisodeManager } from './captures/debugEpisodeManager';
 
 export const API_BASE_URL = 'https://mind-stack-theta.vercel.app';
 
@@ -12,6 +14,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Initialize Session Manager
     const sessionManager = new SessionManager(context);
+
+    // Initialize Advanced Telemetry Managers
+    const debugEpisodeManager = new DebugEpisodeManager(context, sessionManager);
+    sessionManager.setDebugManager(debugEpisodeManager);
+    sessionManager.setFinalSnapshotCallback(captureSnapshot);
 
     // Register Webview
     const sidebarProvider = new SidebarProvider(context, sessionManager);
@@ -28,8 +35,8 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     // Register Captures
-    registerIdeBugFixCapture(context, sessionManager);
-    registerProgressSnapshot(context, sessionManager);
+    registerIdeBugFixCapture(context, sessionManager, debugEpisodeManager);
+    registerProgressSnapshot(context, sessionManager, debugEpisodeManager);
     registerManualHighlight(context, sessionManager);
 }
 

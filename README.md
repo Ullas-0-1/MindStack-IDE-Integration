@@ -4,10 +4,11 @@ MindStack is an intelligent, automated coding context engine that lives securely
 
 ##  Key Features & Workflows
 
-### 1. Automated Bug Fix Tracking (`IDE_TERMINAL_ERROR`)
-* **How it works:** MindStack silently listens to the integrated VS Code terminal for command failures (e.g., `npm ERR!`, `fatal:`, `Exception`). 
-* **The Process:** Upon detecting a failure, it waits for a 2-second debounce window to ensure the entire stack trace has printed. It then instantly captures the complete error log, along with a `git diff HEAD` of your currently active file, and sends the exact breaking state straight to the MindStack dashboard.
-* **Why:** The AI will have perfect, chronological context of exactly what broke and what your code looked like at the exact millisecond it failed.
+### 1. Intelligent Bug Fix Tracking (`IDE_DEBUG_EPISODE`)
+* **How it works:** MindStack silently listens to the integrated VS Code terminal for command failures (e.g., `error`, `fatal`, `Exception`). 
+* **The Process:** Upon detecting a failure, the AI intercepts and caches the exact command you typed (e.g. `node test_bug.js`). It then actively monitors your terminal for when you inevitably run that exact command again. If it runs seamlessly for 2.5 seconds without encountering another error string, the AI automatically considers the bug **RESOLVED!**
+* **The Payload:** It silently generates a massive background JSON payload containing the initial crash log, your chronological terminal debugging actions, the exact files you changed, and a **local hybrid text diff** of the ultimate fix.
+* **Why:** The AI will have perfect, chronological context of exactly what broke, how you arrived at the solution, and what your final fixing code looked like—even if you never commit it to Git!
 
 ### 2. Automated Progress Snapshots (`IDE_PROGRESS_SNAPSHOT`)
 * **How it works:** A background interval runs cleanly every 30 minutes while an active session is running.
@@ -70,7 +71,7 @@ MindStack_IDE_Extension/
 
 Because MindStack utilizes advanced, proposed VS Code APIs to securely read your terminal output, it cannot be installed directly from the public marketplace yet. You must install it manually using the provided `.vsix` file.
 
-1. Ensure you have the `mindstack-0.0.4.vsix` file.
+1. Ensure you have the `mindstack-0.0.5.vsix` file.
 2. Open your computer's terminal (iTerm, Mac Terminal, or Windows Command Prompt).
 3. **CRITICAL:** Launch VS Code with the proposed API flag enabled by running:
    ```bash
@@ -79,7 +80,7 @@ Because MindStack utilizes advanced, proposed VS Code APIs to securely read your
 4. Once VS Code opens, click the **Extensions** icon on the left sidebar (or press `Ctrl+Shift+X` / `Cmd+Shift+X`).
 5. Look at the top right of the extensions panel and click the `...` (Views and More Actions) button.
 6. Click **"Install from VSIX..."**
-7. Select your `mindstack-0.0.4.vsix` file. 
+7. Select your `mindstack-0.0.5.vsix` file. 
 8. The MindStack logo will appear in your left Activity Bar!
 
 ## Uninstallation
